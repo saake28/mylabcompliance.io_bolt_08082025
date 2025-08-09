@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OAuth Callback</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #f9fafb;
+      color: #111827;
+    }
+    .container {
+      text-align: center;
+      padding: 2rem;
+      background-color: white;
+      border-radius: 0.5rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      max-width: 28rem;
+      width: 100%;
+    }
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    p {
+      margin-bottom: 1.5rem;
+      color: #4b5563;
+    }
+    .success {
+      color: #059669;
+      font-weight: 500;
+    }
+    .error {
+      color: #dc2626;
+      font-weight: 500;
+    }
+    .spinner {
+      border: 3px solid rgba(0, 0, 0, 0.1);
+      border-radius: 50%;
+      border-top: 3px solid #3b82f6;
+      width: 24px;
+      height: 24px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 1rem;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="spinner"></div>
+    <h1>Gmail Authorization</h1>
+    <p id="status">Processing authorization for mylabcompliance.io...</p>
+    <p id="debug" style="font-size: 0.8rem; color: #6b7280; margin-top: 1rem;"></p>
+  </div>
+
+  <script>
+    // Get the authorization code from the URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    const error = urlParams.get('error');
+    const statusElement = document.getElementById('status');
+    const debugElement = document.getElementById('debug');
+    
+    // Show debug info
+    debugElement.textContent = `Origin: ${window.location.origin}, Has opener: ${!!window.opener}`;
+
+    if (error) {
+      statusElement.textContent = `Authorization failed: ${error}. Please try again.`;
+      statusElement.className = 'error';
+      setTimeout(() => window.close(), 3000);
+    } else if (code) {
+      statusElement.textContent = 'Authorization successful! Processing your request...';
+      statusElement.className = 'success';
+      
+      // Send the code to the parent window
+      if (window.opener) {
+        console.log("Sending code to parent window", window.location.origin);
+        debugElement.textContent += `\nSending code to parent window at ${window.location.origin}`;
+        
+        window.opener.postMessage({
+          type: 'GMAIL_OAUTH_CALLBACK',
+          code
+        }, window.location.origin);
+        
+        // Close this window after a short delay
+        setTimeout(() => window.close(), 1500);
+      } else {
+        console.error("No parent window found", window.location);
+        debugElement.textContent += `\nError: No parent window found. URL: ${window.location.href}`;
+        statusElement.textContent = 'Error: Could not communicate with the application.';
+        statusElement.className = 'error';
+        
+        // Add a button to manually close the window
+        const closeButton = document.createElement('button');
+        closeButton.textContent = 'Close Window';
+        closeButton.style.marginTop = '1rem';
+        closeButton.style.padding = '0.5rem 1rem';
+        closeButton.style.backgroundColor = '#3b82f6';
+        closeButton.style.color = 'white';
+        closeButton.style.border = 'none';
+        closeButton.style.borderRadius = '0.25rem';
+        closeButton.style.cursor = 'pointer';
+        closeButton.onclick = () => window.close();
+        document.querySelector('.container').appendChild(closeButton);
+        
+        // Still try to auto-close after a longer delay
+        setTimeout(() => window.close(), 10000);
+      }
+    } else {
+      statusElement.textContent = 'No authorization code received. Please try again.';
+      statusElement.className = 'error';
+      setTimeout(() => window.close(), 3000);
+    }
+  </script>
+</body>
+</html>
